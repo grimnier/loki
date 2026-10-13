@@ -1,0 +1,4 @@
+#!/bin/sh
+# loki -- the terminal client (WSL / Linux / macOS). Symlink into ~/.local/bin; it finds the repo from its own location, or LOKI_HOME.
+REPO="${LOKI_HOME:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+exec python3 "$REPO/loki/chat.py" "$@"

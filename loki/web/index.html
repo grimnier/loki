@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>loki</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<nav class="rail" aria-label="views">
+  <button class="tab on" data-view="chat" title="chat"><span class="glyph">›</span><span class="label">chat</span></button>
+  <button class="tab" data-view="studio" title="studio · 4K"><span class="glyph">▢</span><span class="label">studio</span></button>
+  <button class="tab" data-view="chats" title="conversations"><span class="glyph">≡</span><span class="label">chats</span></button>
+  <div class="rail-foot">
+    <button id="new" class="tab small" title="new conversation"><span class="glyph">+</span><span class="label">new</span></button>
+    <button id="knobs-btn" class="tab small" title="knobs"><span class="glyph">⋯</span><span class="label">knobs</span></button>
+    <div id="ctx" class="ctx" title="context used"><span id="ctx-text"></span><i><b></b></i></div>
+  </div>
+</nav>
+
+<div id="knobs" class="knobs" hidden>
+  <div class="knob"><label>think</label><input id="k-think" type="number" min="0" step="50"><span class="dim small">tokens · 0 = no cap</span></div>
+  <div class="knob"><label>answer</label><input id="k-answer" type="number" min="0" step="50"><span class="dim small">tokens · 0 = no cap</span></div>
+  <div class="knob"><label>hood</label><input id="k-bars" type="number" min="1" max="12"><span class="dim small">lines of thought</span></div>
+  <div class="knob"><label>context</label><input id="k-ctx" type="number" min="64" step="64"><span class="dim small">positions · from the next start</span></div>
+  <div class="knob"><label>stats</label><button id="k-stats" class="switch" type="button"><i></i></button><span class="dim small">speed line after each answer</span></div>
+  <div class="knob"><label>window</label><div class="seg mini" id="k-compact"><button data-v="auto">auto</button><button data-v="on">compact</button><button data-v="off">full</button></div><span class="dim small">compact under 880 × 560 · Ctrl-.</span></div>
+  <div class="knob"><label>tools</label><div class="seg mini" id="k-tools"><button data-v="auto">auto</button><button data-v="true">on</button><button data-v="false">off</button></div><span class="dim small" id="k-tools-note">auto = when the context has room</span></div>
+  <div class="knob"><label>hops</label><input id="k-hops" type="number" min="0" max="20"><span class="dim small">tool calls per turn</span></div>
+  <div class="knob"><label>result</label><input id="k-tool_cap" type="number" min="200" step="500"><span class="dim small">characters the model sees per call</span></div>
+  <div class="belt" id="belt"></div>
+  <div class="belt rules" id="rules"></div>
+  <div class="knob-foot dim small">saved to chat_settings.json · same as /think /answer /bars /ctx /stats /tools /tool /hops · click a tool to cycle allow → ask → off</div>
+</div>
+
+<!-- compact mode: the conversation alone; the composer is a visor hinged on the top edge, the conversations a drawer hinged on the left -->
+<div id="visor-zone" class="edge-zone top"></div>
+<button id="visor-handle" class="handle top" type="button" title="type, or /  ·  the box"></button>
+<div id="drawer-zone" class="edge-zone left"></div>
+<button id="drawer-handle" class="handle left" type="button" title="Ctrl-B  ·  conversations"></button>
+<aside id="drawer" class="drawer" aria-label="conversations">
+  <div class="drawer-head"><span class="dim small">conversations</span><button id="drawer-new" class="dim small" type="button">+ new</button></div>
+  <div id="drawer-list"></div>
+</aside>
+<div id="shade" class="shade" hidden></div>
+
+<main id="chat" class="view on">
+  <div id="scroll" class="scroll">
+    <div id="log" class="column"></div>
+    <div id="hood" class="column hood" hidden>
+      <button id="hood-head" class="hood-head dim" type="button">thinking · 0s</button>
+      <div id="thought" class="thought dim"></div>
+    </div>
+    <div id="ask" class="column ask" hidden>
+      <span id="ask-text" class="dim"></span>
+      <button id="ask-yes" type="button">allow</button>
+      <button id="ask-always" type="button" class="dim" title="allow, and remember it for this command">always</button>
+      <button id="ask-no" type="button" class="dim">deny</button>
+    </div>
+  </div>
+  <button id="to-bottom" class="to-bottom" type="button" title="newest" hidden>↓</button>
+  <div class="composer-wrap">
+    <div class="column">
+      <div id="queue-lines" class="queue-lines"></div>
+      <div id="palette" class="palette" hidden></div>
+      <div id="composer" class="composer">
+        <span class="prompt dim">›</span>
+        <textarea id="input" rows="1" spellcheck="false" autofocus></textarea>
+        <button id="stop" class="stop" type="button" title="stop · Esc" hidden><span></span></button>
+      </div>
+      <div id="hint" class="hint dim">Enter sends · Tab opens the thought · / commands · Ctrl-, knobs</div>
+      <div id="dead" class="hint dim" hidden>engine stopped · <button id="restart" type="button">restart</button> · the conversation continues</div>
+    </div>
+  </div>
+</main>
+
+<main id="chats" class="view">
+  <div class="scroll">
+    <div class="column chats">
+      <header class="studio-head"><h1>Conversations</h1><span class="dim small">click one to continue it · the last exchange is carried into a fresh context</span></header>
+      <input id="chats-find" class="find" type="text" placeholder="find in every conversation" spellcheck="false">
+      <div id="chats-list"><div class="dim small">loading</div></div>
+    </div>
+  </div>
+</main>
+
+<main id="studio" class="view">
+  <div class="scroll">
+    <div class="column studio">
+      <header class="studio-head">
+        <h1>Studio</h1>
+        <div class="seg" role="tablist">
+          <button class="on" data-kind="picture">picture</button>
+          <button data-kind="video">video</button>
+        </div>
+      </header>
+      <div class="studio-body">
+        <div class="stage">
+          <div class="frame" id="frame" data-ratio="16:9">
+            <img id="frame-img" alt="" hidden>
+            <span class="dim" id="frame-size">3840 × 2160</span>
+            <span class="dim small" id="frame-note">no model attached yet · the stub agent draws placeholders</span>
+            <i class="progress"><b id="frame-progress"></b></i>
+          </div>
+          <div class="strip" id="strip"></div>
+          <div class="composer">
+            <span class="prompt dim">›</span>
+            <textarea id="studio-input" rows="1" spellcheck="false" placeholder="describe the picture"></textarea>
+            <button id="render" class="go" type="button" disabled>render</button>
+          </div>
+          <div class="hint dim">Enter queues it · the model can queue here too (the studio tool) · the 4K agent runs the queue once it is tied in</div>
+        </div>
+        <aside class="params">
+          <div class="param"><label>size</label><div class="chips" id="res"><button class="on" data-v="4K">4K</button><button data-v="1080p">1080p</button></div></div>
+          <div class="param"><label>aspect</label><div class="chips" id="ratio"><button class="on" data-v="16:9">16:9</button><button data-v="1:1">1:1</button><button data-v="9:16">9:16</button></div></div>
+          <div class="param" id="p-dur" hidden><label>length</label><div class="chips" id="dur"><button class="on" data-v="4s">4s</button><button data-v="8s">8s</button><button data-v="16s">16s</button></div></div>
+          <div class="param" id="p-fps" hidden><label>fps</label><div class="chips" id="fps"><button data-v="24">24</button><button class="on" data-v="30">30</button><button data-v="60">60</button></div></div>
+          <div class="param"><label>steps</label><input id="steps" type="range" min="10" max="60" value="30"><output for="steps">30</output></div>
+          <div class="param"><label>guidance</label><input id="guide" type="range" min="1" max="15" value="6" step="0.5"><output for="guide">6</output></div>
+          <div class="param"><label>seed</label><input id="seed" type="text" placeholder="random" spellcheck="false"></div>
+        </aside>
+      </div>
+      <section class="queue">
+        <h2 class="dim">queue</h2>
+        <div id="queue"><div class="dim small">empty</div></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+#!/bin/sh
+# loki-app -- the window (WSL / Linux / macOS). Starts the local server and opens a browser app window.
+REPO="${LOKI_HOME:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+exec python3 "$REPO/loki/app.py" "$@"

@@ -1,0 +1,13 @@
+ptx_trees/
+models/
+results/
+*.exe
+*.obj
+*.dll
+*.lib
+*.bin
+*.gguf
+*.log
+*.jsonl
+__pycache__/
+chat_settings.json
